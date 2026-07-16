@@ -21,7 +21,7 @@ const db = getFirestore(firebaseApp);
 // ── Config ────────────────────────────────────────────────────────────────────
 const LOCATIONS = ["Bountiful", "Millcreek", "Midvale"];
 const ROLES = [
-  { id: "manager",   label: "Manager",        icon: "🏪" },
+  { id: "admin",   label: "Admin",          icon: "🏪" },
   { id: "kitchen",   label: "Kitchen",        icon: "🍳", location: "Kitchen"   },
   { id: "bountiful", label: "Bountiful",      icon: "📍", location: "Bountiful" },
   { id: "millcreek", label: "Millcreek",      icon: "📍", location: "Millcreek" },
@@ -216,10 +216,11 @@ function KitchenCatalog({ items, shopItems, onAddItem, onUpdateItem, onDeleteIte
   const locationMap = { master:"", bountiful:"Bountiful", millcreek:"Millcreek", midvale:"Midvale", kitchen:"Kitchen" };
   const handleSave = async (vals) => {
     if (editingId) {
-      await onUpdateItem(editingId, vals);
+      await onUpdateItem(editingId, {...vals, location: vals.location||""});
       setEditingId(null);
     } else {
-      await onAddItem({ ...vals, shopSpecific: activeTab!=="master", location: locationMap[activeTab]||"" });
+      const loc = locationMap[activeTab]||"";
+      await onAddItem({ ...vals, shopSpecific: activeTab!=="master", location: loc });
       setAddingNew(false);
     }
   };
@@ -499,7 +500,7 @@ function SubmissionsView({ user, submissions }) {
   const [expanded, setExpanded] = useState(null);
 
   // Filter: shops see only their own; kitchen sees all
-  const visible = user.role==="manager"
+  const visible = user.role==="admin"
     ? submissions
     : submissions.filter(s=>s.location===user.location);
 
@@ -562,7 +563,7 @@ function SubmissionsView({ user, submissions }) {
 
 // ── Export View ───────────────────────────────────────────────────────────────
 function ExportView({ user, submissions }) {
-  const visible = user.role==="manager"
+  const visible = user.role==="admin"
     ? submissions
     : submissions.filter(s=>s.location===user.location);
 
@@ -725,7 +726,7 @@ function ShopInventoryManage({ user, masterItems, shopItems, thresholds, onAddSh
       {addingNew&&<ShopItemEditor location={location} onSave={handleSave} onCancel={()=>setAddingNew(false)}/>}
 
       <div style={{ fontSize:12, color:"#6B7280", marginBottom:12 }}>
-        Master items are managed by Kitchen. You can set thresholds for each item in the Inventory Count view.
+        Master items are managed by Admin. You can set thresholds for each item in the Inventory Count view.
       </div>
 
       <div style={{ fontSize:11, fontWeight:700, color:"#9CA3AF", textTransform:"uppercase", letterSpacing:"0.07em", marginBottom:8 }}>
@@ -798,7 +799,9 @@ export default function App() {
   const addMasterItem = async(vals) => {
     try{
       const id=genId();
-      await setDoc(doc(db,"inv_master",id),{id,...vals,createdAt:serverTimestamp()});
+      // Strip undefined values - Firestore doesn't accept them
+      const clean = Object.fromEntries(Object.entries({id,...vals,createdAt:serverTimestamp()}).filter(([,v])=>v!==undefined));
+      await setDoc(doc(db,"inv_master",id), clean);
       showToast("Item added");
     }catch(e){ console.error("addMasterItem error:",e); showToast("Error: "+e.message); }
   };
@@ -816,7 +819,8 @@ export default function App() {
   const addShopItem = async(vals) => {
     try{
       const id=genId();
-      await setDoc(doc(db,"inv_shop",id),{id,...vals,createdAt:serverTimestamp()});
+      const clean = Object.fromEntries(Object.entries({id,...vals,createdAt:serverTimestamp()}).filter(([,v])=>v!==undefined));
+      await setDoc(doc(db,"inv_shop",id), clean);
       showToast("Shop item added");
     }catch(e){ console.error("addShopItem error:",e); showToast("Error: "+e.message); }
   };
@@ -842,13 +846,13 @@ export default function App() {
 
   if(!user) return <LoginScreen onLogin={u=>{
     setUser(u);
-    setView(u.role==="manager"?"catalog":"count");
+    setView(u.role==="admin"?"catalog":"count");
   }}/>;
 
-  const isManager = user.role==="manager";
-  const isShop = !isManager; // kitchen + all 3 locations are "shops"
+  const isAdmin = user.role==="admin";
+  const isShop = !isAdmin; // kitchen + all 3 locations are "shops"
 
-  const navTabs = isManager
+  const navTabs = isAdmin
     ? [["catalog","Item Catalog"],["submissions","Submissions"],["export","Export"]]
     : [["count","New Count"],["manage","My Items"],["submissions","Submissions"],["export","Export"]];
 
@@ -895,7 +899,7 @@ export default function App() {
                 onSubmit={submitInventory}
                 onUpdateThreshold={updateThreshold}/>
             )}
-            {view==="catalog"&&isManager&&(
+            {view==="catalog"&&isAdmin&&(
               <KitchenCatalog
                 items={masterItems}
                 shopItems={shopItems}
