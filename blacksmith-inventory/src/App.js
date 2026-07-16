@@ -197,12 +197,13 @@ function KitchenCatalog({ items, shopItems, onAddItem, onUpdateItem, onDeleteIte
   const bySection = currentList.reduce((acc,i)=>{ const s=i.section||"Other"; if(!acc[s])acc[s]=[]; acc[s].push(i); return acc; },{});
   const sections = SECTIONS.filter(s=>bySection[s]);
 
+  const locationMap = { master:"", bountiful:"Bountiful", millcreek:"Millcreek", midvale:"Midvale", kitchen:"Kitchen" };
   const handleSave = async (vals) => {
     if (editingId) {
       await onUpdateItem(editingId, vals);
       setEditingId(null);
     } else {
-      await onAddItem({ ...vals, shopSpecific: activeTab!=="master", location: activeTab==="master"?"":activeTab.charAt(0).toUpperCase()+activeTab.slice(1) });
+      await onAddItem({ ...vals, shopSpecific: activeTab!=="master", location: locationMap[activeTab]||"" });
       setAddingNew(false);
     }
   };
@@ -659,7 +660,7 @@ function ShopItemEditor({ item, location, onSave, onCancel }) {
         </div>
       </div>
       <div style={{ display:"flex", gap:8 }}>
-        <button onClick={()=>onSave({...vals, shopSpecific:true, location})} style={{ flex:2, padding:"9px 0", borderRadius:8, border:"none", background:"#1C1917", color:"#fff", fontWeight:700, fontSize:13, cursor:"pointer" }}>Save</button>
+        <button onClick={async()=>{ await onSave({...vals, shopSpecific:true, location}); }} style={{ flex:2, padding:"9px 0", borderRadius:8, border:"none", background:"#1C1917", color:"#fff", fontWeight:700, fontSize:13, cursor:"pointer" }}>Save</button>
         <button onClick={onCancel} style={{ flex:1, padding:"9px 0", borderRadius:8, border:"1.5px solid #E5E7EB", background:"#fff", color:"#374151", fontWeight:600, fontSize:13, cursor:"pointer" }}>Cancel</button>
       </div>
     </div>
@@ -797,7 +798,10 @@ export default function App() {
     setView("submissions");
   };
 
-  if(!user) return <LoginScreen onLogin={u=>{ setUser(u); setView("count"); }}/>;
+  if(!user) return <LoginScreen onLogin={u=>{
+    setUser(u);
+    setView(u.role==="kitchen"?"catalog":"count");
+  }}/>;
 
   const isKitchen = user.role==="kitchen";
 
@@ -848,7 +852,7 @@ export default function App() {
                 onSubmit={submitInventory}
                 onUpdateThreshold={updateThreshold}/>
             )}
-            {view==="catalog"&&isKitchen&&(
+            {view==="catalog"&&(
               <KitchenCatalog
                 items={masterItems}
                 shopItems={shopItems}
@@ -856,7 +860,7 @@ export default function App() {
                 onUpdateItem={updateMasterItem}
                 onDeleteItem={deleteMasterItem}/>
             )}
-            {view==="manage"&&!isKitchen&&(
+            {view==="manage"&&(
               <ShopInventoryManage
                 user={user}
                 masterItems={masterItems}
