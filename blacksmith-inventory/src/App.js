@@ -8,12 +8,12 @@ import * as XLSX from "xlsx";
 
 // ── Firebase ──────────────────────────────────────────────────────────────────
 const firebaseConfig = {
-  apiKey: process.env.REACT_APP_FIREBASE_API_KEY || "AIzaSyDEGdvvfSEV-BbklQmKYMadkk9kQuGCKDM",
+  apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
   authDomain: "blacksmith-ordering.firebaseapp.com",
   projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID || "blacksmith-ordering",
   storageBucket: "blacksmith-ordering.firebasestorage.app",
   messagingSenderId: process.env.REACT_APP_FIREBASE_SENDER_ID || "627729632784",
-  appId: process.env.REACT_APP_FIREBASE_APP_ID || "1:627729632784:web:ff3cbfbf7f313cbb4f4495",
+  appId: process.env.REACT_APP_FIREBASE_APP_ID,
 };
 const firebaseApp = initializeApp(firebaseConfig, "inventory");
 const db = getFirestore(firebaseApp);
