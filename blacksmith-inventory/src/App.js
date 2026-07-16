@@ -21,7 +21,8 @@ const db = getFirestore(firebaseApp);
 // ── Config ────────────────────────────────────────────────────────────────────
 const LOCATIONS = ["Bountiful", "Millcreek", "Midvale"];
 const ROLES = [
-  { id: "kitchen",   label: "Kitchen",        icon: "🍳" },
+  { id: "manager",   label: "Manager",        icon: "🏪" },
+  { id: "kitchen",   label: "Kitchen",        icon: "🍳", location: "Kitchen"   },
   { id: "bountiful", label: "Bountiful",      icon: "📍", location: "Bountiful" },
   { id: "millcreek", label: "Millcreek",      icon: "📍", location: "Millcreek" },
   { id: "midvale",   label: "Midvale",        icon: "📍", location: "Midvale"   },
@@ -71,7 +72,8 @@ function QtyInput({ value, onChange, min=0 }) {
       <button onClick={()=>onChange(Math.max(min, Number(value)-1))} style={{ width:32, height:38, border:"none", background:"#F3F4F6", color:"#374151", fontSize:18, cursor:"pointer", fontWeight:700, lineHeight:1 }}>−</button>
       <input type="number" value={value} min={min}
         onChange={e=>onChange(Math.max(min, Number(e.target.value)))}
-        style={{ width:54, border:"none", textAlign:"center", fontSize:14, fontWeight:600, color:"#1C1917", padding:"8px 4px", outline:"none" }}/>
+        style={{ width:54, border:"none", textAlign:"center", fontSize:14, fontWeight:600, color:"#1C1917", padding:"8px 4px", outline:"none", MozAppearance:"textfield", WebkitAppearance:"none" }}/>
+      <style>{`input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }`}</style>
       <button onClick={()=>onChange(Number(value)+1)} style={{ width:32, height:38, border:"none", background:"#F3F4F6", color:"#374151", fontSize:18, cursor:"pointer", fontWeight:700, lineHeight:1 }}>+</button>
     </div>
   );
@@ -124,6 +126,8 @@ function ItemEditor({ item, onSave, onCancel }) {
     purchaseLocation: item?.purchaseLocation||VENDORS[0],
     backupLocation: item?.backupLocation||"",
     notes: item?.notes||"",
+    low: item?.low||"",
+    critical: item?.critical||"",
   });
   const set = (k,v) => setVals(p=>({...p,[k]:v}));
 
@@ -159,6 +163,18 @@ function ItemEditor({ item, onSave, onCancel }) {
             <option value="">None</option>
             {VENDORS.map(v=><option key={v} value={v}>{v}</option>)}
           </select>
+        </div>
+      </div>
+      <div style={{ display:"flex", gap:8, marginBottom:8 }}>
+        <div style={{ flex:1 }}>
+          <label style={S.label}>🟡 Low Threshold</label>
+          <input type="number" value={vals.low||""} onChange={e=>set("low",e.target.value)}
+            style={{...S.input, MozAppearance:"textfield"}} placeholder="e.g. 2"/>
+        </div>
+        <div style={{ flex:1 }}>
+          <label style={S.label}>🔴 Critical Threshold</label>
+          <input type="number" value={vals.critical||""} onChange={e=>set("critical",e.target.value)}
+            style={{...S.input, MozAppearance:"textfield"}} placeholder="e.g. 1"/>
         </div>
       </div>
       <div style={{ marginBottom:12 }}>
@@ -290,7 +306,13 @@ function InventoryCount({ user, masterItems, shopItems, thresholds, onSubmit, on
   const [submitting, setSubmitting] = useState(false);
   const [sessionNote, setSessionNote] = useState("");
 
-  const getThreshold = (itemId) => thresholds[`${location}:${itemId}`] || { low:"", critical:"" };
+  const getThreshold = (itemId) => {
+    const locThreshold = thresholds[`${location}:${itemId}`];
+    if(locThreshold && (locThreshold.low!==""||locThreshold.critical!=="")) return locThreshold;
+    // Fall back to item-level default thresholds
+    const item = [...masterItems,...shopItems].find(i=>getDocId(i)===itemId);
+    return { low: item?.low||"", critical: item?.critical||"" };
+  };
 
   const getHighlight = (itemId, value) => {
     if(value===""||value===null) return null;
@@ -477,7 +499,7 @@ function SubmissionsView({ user, submissions }) {
   const [expanded, setExpanded] = useState(null);
 
   // Filter: shops see only their own; kitchen sees all
-  const visible = user.role==="kitchen"
+  const visible = user.role==="manager"
     ? submissions
     : submissions.filter(s=>s.location===user.location);
 
@@ -540,7 +562,7 @@ function SubmissionsView({ user, submissions }) {
 
 // ── Export View ───────────────────────────────────────────────────────────────
 function ExportView({ user, submissions }) {
-  const visible = user.role==="kitchen"
+  const visible = user.role==="manager"
     ? submissions
     : submissions.filter(s=>s.location===user.location);
 
@@ -629,6 +651,8 @@ function ShopItemEditor({ item, location, onSave, onCancel }) {
     purchaseLocation: item?.purchaseLocation||VENDORS[0],
     backupLocation: item?.backupLocation||"",
     notes: item?.notes||"",
+    low: item?.low||"",
+    critical: item?.critical||"",
   });
   const set=(k,v)=>setVals(p=>({...p,[k]:v}));
   return (
@@ -657,6 +681,18 @@ function ShopItemEditor({ item, location, onSave, onCancel }) {
             <option value="">None</option>
             {VENDORS.map(v=><option key={v}>{v}</option>)}
           </select>
+        </div>
+      </div>
+      <div style={{ display:"flex", gap:8, marginBottom:12 }}>
+        <div style={{ flex:1 }}>
+          <label style={S.label}>🟡 Low Threshold</label>
+          <input type="number" value={vals.low||""} onChange={e=>set("low",e.target.value)}
+            style={{...S.input, MozAppearance:"textfield"}} placeholder="e.g. 2"/>
+        </div>
+        <div style={{ flex:1 }}>
+          <label style={S.label}>🔴 Critical Threshold</label>
+          <input type="number" value={vals.critical||""} onChange={e=>set("critical",e.target.value)}
+            style={{...S.input, MozAppearance:"textfield"}} placeholder="e.g. 1"/>
         </div>
       </div>
       <div style={{ display:"flex", gap:8 }}>
@@ -760,13 +796,17 @@ export default function App() {
 
   // ── CRUD ────────────────────────────────────────────────────────────────────
   const addMasterItem = async(vals) => {
-    const id=genId();
-    await setDoc(doc(db,"inv_master",id),{id,...vals,createdAt:serverTimestamp()});
-    showToast("Item added");
+    try{
+      const id=genId();
+      await setDoc(doc(db,"inv_master",id),{id,...vals,createdAt:serverTimestamp()});
+      showToast("Item added");
+    }catch(e){ console.error("addMasterItem error:",e); showToast("Error: "+e.message); }
   };
   const updateMasterItem = async(docId,vals) => {
-    await updateDoc(doc(db,"inv_master",docId),vals);
-    showToast("Item updated");
+    try{
+      await updateDoc(doc(db,"inv_master",docId),vals);
+      showToast("Item updated");
+    }catch(e){ console.error("updateMasterItem error:",e); showToast("Error: "+e.message); }
   };
   const deleteMasterItem = async(docId) => {
     await deleteDoc(doc(db,"inv_master",docId));
@@ -774,9 +814,11 @@ export default function App() {
   };
 
   const addShopItem = async(vals) => {
-    const id=genId();
-    await setDoc(doc(db,"inv_shop",id),{id,...vals,createdAt:serverTimestamp()});
-    showToast("Shop item added");
+    try{
+      const id=genId();
+      await setDoc(doc(db,"inv_shop",id),{id,...vals,createdAt:serverTimestamp()});
+      showToast("Shop item added");
+    }catch(e){ console.error("addShopItem error:",e); showToast("Error: "+e.message); }
   };
   const updateShopItem = async(docId,vals) => {
     await updateDoc(doc(db,"inv_shop",docId),vals);
@@ -800,13 +842,14 @@ export default function App() {
 
   if(!user) return <LoginScreen onLogin={u=>{
     setUser(u);
-    setView(u.role==="kitchen"?"catalog":"count");
+    setView(u.role==="manager"?"catalog":"count");
   }}/>;
 
-  const isKitchen = user.role==="kitchen";
+  const isManager = user.role==="manager";
+  const isShop = !isManager; // kitchen + all 3 locations are "shops"
 
-  const navTabs = isKitchen
-    ? [["count","New Count"],["catalog","Item Catalog"],["submissions","Submissions"],["export","Export"]]
+  const navTabs = isManager
+    ? [["catalog","Item Catalog"],["submissions","Submissions"],["export","Export"]]
     : [["count","New Count"],["manage","My Items"],["submissions","Submissions"],["export","Export"]];
 
   return (
@@ -852,7 +895,7 @@ export default function App() {
                 onSubmit={submitInventory}
                 onUpdateThreshold={updateThreshold}/>
             )}
-            {view==="catalog"&&(
+            {view==="catalog"&&isManager&&(
               <KitchenCatalog
                 items={masterItems}
                 shopItems={shopItems}
@@ -860,7 +903,7 @@ export default function App() {
                 onUpdateItem={updateMasterItem}
                 onDeleteItem={deleteMasterItem}/>
             )}
-            {view==="manage"&&(
+            {view==="manage"&&isShop&&(
               <ShopInventoryManage
                 user={user}
                 masterItems={masterItems}
