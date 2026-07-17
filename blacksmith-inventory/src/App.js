@@ -766,58 +766,53 @@ function AdminItemsView({ masterItems, shopItems, onAddItem, onUpdateItem, onDel
   const [editingId, setEditingId] = useState(null);
   const [editingShopId, setEditingShopId] = useState(null);
   const [showNewItem, setShowNewItem] = useState(false);
-  const [newItemScope, setNewItemScope] = useState("master");
+  const [newScope, setNewScope] = useState("master");
   const [editVals, setEditVals] = useState({});
-  const [newVals, setNewVals] = useState({
-    name:"", unit:"", section:SECTIONS[0], purchaseLocation:VENDORS[0],
-    backupLocation:"", notes:"", low:"", critical:""
-  });
+  const [newVals, setNewVals] = useState({ name:"", unit:"", section:SECTIONS[0], purchaseLocation:VENDORS[0], backupLocation:"", notes:"", low:"", critical:"" });
+  const [activeSection, setActiveSection] = useState("master");
 
   const scopeOptions = [
-    { key:"master",    label:"Master Items",      color:"#1C1917", bg:"#F3F4F6" },
-    { key:"Kitchen",   label:"Kitchen Custom",    color:"#7C3AED", bg:"#EDE9FE" },
-    { key:"Bountiful", label:"Bountiful Custom",  color:"#0891B2", bg:"#CFFAFE" },
-    { key:"Millcreek", label:"Millcreek Custom",  color:"#059669", bg:"#D1FAE5" },
-    { key:"Midvale",   label:"Midvale Custom",    color:"#D97706", bg:"#FEF3C7" },
+    { key:"master",    label:"Master Items",     color:"#1C1917", bg:"#F3F4F6",  items:masterItems },
+    { key:"Kitchen",   label:"Kitchen Items",    color:"#7C3AED", bg:"#EDE9FE",  items:shopItems.filter(i=>i.location==="Kitchen") },
+    { key:"Bountiful", label:"Bountiful Items",  color:"#0891B2", bg:"#CFFAFE",  items:shopItems.filter(i=>i.location==="Bountiful") },
+    { key:"Millcreek", label:"Millcreek Items",  color:"#059669", bg:"#D1FAE5",  items:shopItems.filter(i=>i.location==="Millcreek") },
+    { key:"Midvale",   label:"Midvale Items",    color:"#D97706", bg:"#FEF3C7",  items:shopItems.filter(i=>i.location==="Midvale") },
   ];
 
-  const getItemsForScope = (scope) => {
-    if(scope==="master") return masterItems;
-    return shopItems.filter(i=>i.location===scope);
-  };
+  const currentScope = scopeOptions.find(s=>s.key===activeSection)||scopeOptions[0];
+  const currentItems = currentScope.items;
+  const bySection = currentItems.reduce((acc,i)=>{ const s=i.section||"Other"; if(!acc[s])acc[s]=[]; acc[s].push(i); return acc; },{});
+  const sections = SECTIONS.filter(s=>bySection[s]);
 
   const startEdit = (item, isShop) => {
     const id = getDocId(item);
-    if(isShop) setEditingShopId(id);
-    else setEditingId(id);
-    setEditVals({
-      name:item.name||"", unit:item.unit||"", section:item.section||SECTIONS[0],
+    if(isShop) setEditingShopId(id); else setEditingId(id);
+    setEditVals({ name:item.name||"", unit:item.unit||"", section:item.section||SECTIONS[0],
       purchaseLocation:item.purchaseLocation||VENDORS[0], backupLocation:item.backupLocation||"",
-      notes:item.notes||"", low:item.low||"", critical:item.critical||""
-    });
+      notes:item.notes||"", low:item.low||"", critical:item.critical||"" });
   };
 
   const saveEdit = async(item, isShop) => {
     const id = getDocId(item);
     const clean = Object.fromEntries(Object.entries(editVals).filter(([,v])=>v!==undefined));
-    if(isShop) { await onUpdateShopItem(id, clean); setEditingShopId(null); }
-    else { await onUpdateItem(id, clean); setEditingId(null); }
+    if(isShop){ await onUpdateShopItem(id, clean); setEditingShopId(null); }
+    else{ await onUpdateItem(id, clean); setEditingId(null); }
   };
 
   const handleAddNew = async() => {
     if(!newVals.name.trim()) return;
     const clean = Object.fromEntries(Object.entries(newVals).filter(([,v])=>v!==""));
-    if(newItemScope==="master") {
+    if(newScope==="master"){
       await onAddItem({ ...clean, shopSpecific:false, location:"" });
     } else {
-      await onAddShopItem({ ...clean, shopSpecific:true, location:newItemScope });
+      await onAddShopItem({ ...clean, shopSpecific:true, location:newScope });
     }
     setNewVals({ name:"", unit:"", section:SECTIONS[0], purchaseLocation:VENDORS[0], backupLocation:"", notes:"", low:"", critical:"" });
     setShowNewItem(false);
   };
 
-  const EditForm = ({ vals, setVals, onSave, onCancel }) => (
-    <div style={{ background:"#EFF6FF", border:"1.5px solid #BFDBFE", borderRadius:10, padding:"12px", marginTop:4 }}>
+  const InlineEditForm = ({ vals, setVals, onSave, onCancel }) => (
+    <div style={{ background:"#EFF6FF", border:"1.5px solid #BFDBFE", borderRadius:10, padding:"12px", marginTop:4, marginBottom:8 }}>
       <div style={{ display:"flex", gap:8, marginBottom:8, flexWrap:"wrap" }}>
         <div style={{ flex:2, minWidth:120 }}>
           <label style={S.label}>Name</label>
@@ -828,40 +823,44 @@ function AdminItemsView({ masterItems, shopItems, onAddItem, onUpdateItem, onDel
           <input value={vals.unit} onChange={e=>setVals(p=>({...p,unit:e.target.value}))} style={S.input}/>
         </div>
       </div>
-      <div style={{ marginBottom:8 }}>
-        <label style={S.label}>Section</label>
-        <select value={vals.section} onChange={e=>setVals(p=>({...p,section:e.target.value}))} style={S.input}>
-          {SECTIONS.map(s=><option key={s}>{s}</option>)}
-        </select>
-      </div>
-      <div style={{ display:"flex", gap:8, marginBottom:8 }}>
+      <div style={{ display:"flex", gap:8, marginBottom:8, flexWrap:"wrap" }}>
+        <div style={{ flex:1 }}>
+          <label style={S.label}>Section</label>
+          <select value={vals.section} onChange={e=>setVals(p=>({...p,section:e.target.value}))} style={S.input}>
+            {SECTIONS.map(s=><option key={s}>{s}</option>)}
+          </select>
+        </div>
         <div style={{ flex:1 }}>
           <label style={S.label}>Purchase Location</label>
           <select value={vals.purchaseLocation} onChange={e=>setVals(p=>({...p,purchaseLocation:e.target.value}))} style={S.input}>
             {VENDORS.map(v=><option key={v}>{v}</option>)}
           </select>
         </div>
+      </div>
+      <div style={{ display:"flex", gap:8, marginBottom:8 }}>
         <div style={{ flex:1 }}>
-          <label style={S.label}>Backup</label>
+          <label style={S.label}>Backup Location</label>
           <select value={vals.backupLocation} onChange={e=>setVals(p=>({...p,backupLocation:e.target.value}))} style={S.input}>
             <option value="">None</option>
             {VENDORS.map(v=><option key={v}>{v}</option>)}
           </select>
         </div>
-      </div>
-      <div style={{ display:"flex", gap:8, marginBottom:8 }}>
         <div style={{ flex:1 }}>
-          <label style={S.label}>🟡 Low</label>
-          <input type="number" value={vals.low||""} onChange={e=>setVals(p=>({...p,low:e.target.value}))} style={{...S.input,MozAppearance:"textfield"}} placeholder="—"/>
-        </div>
-        <div style={{ flex:1 }}>
-          <label style={S.label}>🔴 Critical</label>
-          <input type="number" value={vals.critical||""} onChange={e=>setVals(p=>({...p,critical:e.target.value}))} style={{...S.input,MozAppearance:"textfield"}} placeholder="—"/>
+          <label style={S.label}>Notes</label>
+          <input value={vals.notes||""} onChange={e=>setVals(p=>({...p,notes:e.target.value}))} style={S.input} placeholder="Optional"/>
         </div>
       </div>
-      <div style={{ marginBottom:10 }}>
-        <label style={S.label}>Notes</label>
-        <input value={vals.notes||""} onChange={e=>setVals(p=>({...p,notes:e.target.value}))} style={S.input} placeholder="Optional"/>
+      <div style={{ display:"flex", gap:8, marginBottom:10 }}>
+        <div style={{ flex:1 }}>
+          <label style={S.label}>🟡 Low Threshold</label>
+          <input type="number" value={vals.low||""} onChange={e=>setVals(p=>({...p,low:e.target.value}))}
+            style={{...S.input, MozAppearance:"textfield"}} placeholder="—"/>
+        </div>
+        <div style={{ flex:1 }}>
+          <label style={S.label}>🔴 Critical Threshold</label>
+          <input type="number" value={vals.critical||""} onChange={e=>setVals(p=>({...p,critical:e.target.value}))}
+            style={{...S.input, MozAppearance:"textfield"}} placeholder="—"/>
+        </div>
       </div>
       <div style={{ display:"flex", gap:8 }}>
         <button onClick={onSave} style={{ flex:2, padding:"9px 0", borderRadius:8, border:"none", background:"#1C1917", color:"#fff", fontWeight:700, fontSize:13, cursor:"pointer" }}>Save</button>
@@ -872,11 +871,13 @@ function AdminItemsView({ masterItems, shopItems, onAddItem, onUpdateItem, onDel
 
   return (
     <div style={{ paddingBottom:60 }}>
+      {/* Header */}
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 }}>
-        <h2 style={{ fontSize:18, fontWeight:800, color:"#1C1917" }}>All Items</h2>
+        <h2 style={{ fontSize:18, fontWeight:800, color:"#1C1917" }}>Inventory List</h2>
         <button onClick={()=>setShowNewItem(!showNewItem)} style={{
           padding:"8px 14px", borderRadius:8, border:"none",
-          background:showNewItem?"#E5E7EB":"#1C1917", color:showNewItem?"#374151":"#fff",
+          background:showNewItem?"#E5E7EB":"#1C1917",
+          color:showNewItem?"#374151":"#fff",
           fontWeight:700, fontSize:12, cursor:"pointer" }}>
           {showNewItem?"Cancel":"+ New Item"}
         </button>
@@ -886,91 +887,91 @@ function AdminItemsView({ masterItems, shopItems, onAddItem, onUpdateItem, onDel
       {showNewItem&&(
         <div style={{ background:"#F0FDF4", border:"1.5px solid #86EFAC", borderRadius:12, padding:"16px", marginBottom:20 }}>
           <div style={{ fontSize:13, fontWeight:700, color:"#1C1917", marginBottom:10 }}>New Item</div>
-          {/* Scope selector */}
           <label style={S.label}>Assign to</label>
           <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginBottom:12 }}>
             {scopeOptions.map(s=>(
-              <button key={s.key} onClick={()=>setNewItemScope(s.key)} style={{
+              <button key={s.key} onClick={()=>setNewScope(s.key)} style={{
                 padding:"6px 12px", borderRadius:8, border:"2px solid",
-                borderColor:newItemScope===s.key?s.color:"#E5E7EB",
-                background:newItemScope===s.key?s.bg:"#fff",
-                color:newItemScope===s.key?s.color:"#6B7280",
+                borderColor:newScope===s.key?s.color:"#E5E7EB",
+                background:newScope===s.key?s.bg:"#fff",
+                color:newScope===s.key?s.color:"#6B7280",
                 fontWeight:600, fontSize:12, cursor:"pointer" }}>
                 {s.label}
               </button>
             ))}
           </div>
-          <EditForm
-            vals={newVals}
-            setVals={setNewVals}
+          <InlineEditForm
+            vals={newVals} setVals={setNewVals}
             onSave={handleAddNew}
             onCancel={()=>setShowNewItem(false)}/>
         </div>
       )}
 
-      {/* Sections */}
-      {scopeOptions.map(scope=>{
-        const items = getItemsForScope(scope.key);
-        const isShop = scope.key!=="master";
-        const bySection = items.reduce((acc,i)=>{ const s=i.section||"Other"; if(!acc[s])acc[s]=[]; acc[s].push(i); return acc; },{});
-        const sections = SECTIONS.filter(s=>bySection[s]);
-        if(items.length===0) return null;
-        return(
-          <div key={scope.key} style={{ marginBottom:24 }}>
-            {/* Scope header */}
-            <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:10 }}>
-              <div style={{ background:scope.bg, borderRadius:8, padding:"4px 12px" }}>
-                <span style={{ fontSize:12, fontWeight:700, color:scope.color }}>{scope.label}</span>
-                <span style={{ fontSize:12, color:scope.color, marginLeft:6 }}>({items.length})</span>
-              </div>
-            </div>
-            {sections.map(sec=>(
-              <div key={sec} style={{ marginBottom:12 }}>
-                <div style={{ fontSize:10, fontWeight:700, color:"#9CA3AF", textTransform:"uppercase", letterSpacing:"0.07em", marginBottom:5 }}>{sec}</div>
-                {bySection[sec].map(item=>{
-                  const id=getDocId(item);
-                  const isEditingThis=(isShop?editingShopId:editingId)===id;
-                  return(
-                    <div key={id} style={{ marginBottom:6 }}>
-                      {isEditingThis?(
-                        <EditForm
-                          vals={editVals}
-                          setVals={setEditVals}
-                          onSave={()=>saveEdit(item,isShop)}
-                          onCancel={()=>{ setEditingId(null); setEditingShopId(null); }}/>
-                      ):(
-                        <div style={{ ...S.card, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-                          <div style={{ flex:1, minWidth:0 }}>
-                            <div style={{ fontWeight:600, fontSize:14, color:"#1C1917" }}>{item.name}</div>
-                            <div style={{ fontSize:12, color:"#9CA3AF", marginTop:1 }}>
-                              {item.unit}{item.purchaseLocation?` · ${item.purchaseLocation}`:""}
-                              {item.low?` · 🟡${item.low}`:""}
-                              {item.critical?` 🔴${item.critical}`:""}
-                            </div>
-                          </div>
-                          <div style={{ display:"flex", gap:8, flexShrink:0 }}>
-                            <button onClick={()=>startEdit(item,isShop)} style={{ background:"none", border:"none", color:"#2563EB", fontSize:12, fontWeight:600, cursor:"pointer" }}>Edit</button>
-                            {isShop&&(
-                              <button onClick={()=>onDeleteShopItem(id)} style={{ background:"none", border:"none", color:"#EF4444", fontSize:12, fontWeight:600, cursor:"pointer" }}>Delete</button>
-                            )}
-                          </div>
-                        </div>
+      {/* Section tabs */}
+      <div style={{ display:"flex", background:"#fff", borderRadius:"10px 10px 0 0", overflow:"hidden", border:"1px solid #F3F4F6", marginBottom:12, overflowX:"auto" }}>
+        {scopeOptions.map(s=>(
+          <button key={s.key} onClick={()=>setActiveSection(s.key)} style={{
+            padding:"10px 10px", border:"none", background:"none", whiteSpace:"nowrap",
+            fontWeight:activeSection===s.key?700:500, fontSize:12,
+            color:activeSection===s.key?"#1C1917":"#9CA3AF",
+            borderBottom:activeSection===s.key?"2.5px solid #1C1917":"2.5px solid transparent",
+            cursor:"pointer", position:"relative" }}>
+            {s.label}
+            <span style={{ marginLeft:4, fontSize:11, color:activeSection===s.key?"#6B7280":"#D1D5DB" }}>({s.items.length})</span>
+          </button>
+        ))}
+      </div>
+
+      {/* Item list */}
+      {sections.length===0&&(
+        <div style={{ textAlign:"center", color:"#9CA3AF", padding:"40px 0" }}>
+          No items yet. Add one above.
+        </div>
+      )}
+      {sections.map(sec=>(
+        <div key={sec} style={{ marginBottom:16 }}>
+          <div style={{ fontSize:11, fontWeight:700, color:"#9CA3AF", textTransform:"uppercase", letterSpacing:"0.07em", marginBottom:6 }}>{sec}</div>
+          {bySection[sec].map(item=>{
+            const id = getDocId(item);
+            const isShop = item.shopSpecific;
+            const isEditingThis = isShop ? editingShopId===id : editingId===id;
+            return(
+              <div key={id} style={{ marginBottom:6 }}>
+                {isEditingThis?(
+                  <InlineEditForm
+                    vals={editVals} setVals={setEditVals}
+                    onSave={()=>saveEdit(item,isShop)}
+                    onCancel={()=>{ setEditingId(null); setEditingShopId(null); }}/>
+                ):(
+                  <div style={{ ...S.card, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <div style={{ fontWeight:600, fontSize:14, color:"#1C1917" }}>{item.name}</div>
+                      <div style={{ fontSize:12, color:"#9CA3AF", marginTop:1, display:"flex", gap:8, flexWrap:"wrap" }}>
+                        <span>{item.unit}</span>
+                        {item.section&&<span>· {item.section}</span>}
+                        {item.purchaseLocation&&<span>· {item.purchaseLocation}</span>}
+                        {item.low&&<span style={{ color:"#D97706" }}>🟡 {item.low}</span>}
+                        {item.critical&&<span style={{ color:"#DC2626" }}>🔴 {item.critical}</span>}
+                      </div>
+                      {item.notes&&<div style={{ fontSize:11, color:"#9CA3AF", fontStyle:"italic", marginTop:2 }}>{item.notes}</div>}
+                    </div>
+                    <div style={{ display:"flex", gap:10, flexShrink:0, marginLeft:8 }}>
+                      <button onClick={()=>startEdit(item,isShop)} style={{ background:"none", border:"none", color:"#2563EB", fontSize:12, fontWeight:600, cursor:"pointer" }}>Edit</button>
+                      {isShop&&(
+                        <button onClick={()=>onDeleteShopItem(id)} style={{ background:"none", border:"none", color:"#EF4444", fontSize:12, fontWeight:600, cursor:"pointer" }}>Delete</button>
                       )}
                     </div>
-                  );
-                })}
+                  </div>
+                )}
               </div>
-            ))}
-          </div>
-        );
-      })}
-
-      {masterItems.length===0&&shopItems.length===0&&(
-        <div style={{ textAlign:"center", color:"#9CA3AF", padding:"60px 0" }}>No items yet. Add one above.</div>
-      )}
+            );
+          })}
+        </div>
+      ))}
     </div>
   );
 }
+
 
 // ── Main App ──────────────────────────────────────────────────────────────────
 export default function App() {
@@ -1058,14 +1059,14 @@ export default function App() {
 
   if(!user) return <LoginScreen onLogin={u=>{
     setUser(u);
-    setView(u.role==="admin"?"items":"count");
+    setView(u.role==="admin"?"invtlist":"count");
   }}/>;
 
   const isAdmin = user.role==="admin";
   const isShop = !isAdmin; // kitchen + all 3 locations are "shops"
 
   const navTabs = isAdmin
-    ? [["items","Items"],["submissions","Submissions"],["export","Export"]]
+    ? [["invtlist","Invt. List"],["submissions","Submissions"],["export","Export"]]
     : [["count","New Count"],["manage","My Items"],["submissions","Submissions"],["export","Export"]];
 
   return (
@@ -1111,7 +1112,7 @@ export default function App() {
                 onSubmit={submitInventory}
                 onUpdateThreshold={updateThreshold}/>
             )}
-            {view==="items"&&isAdmin&&(
+            {view==="invtlist"&&isAdmin&&(
               <AdminItemsView
                 masterItems={masterItems}
                 shopItems={shopItems}
