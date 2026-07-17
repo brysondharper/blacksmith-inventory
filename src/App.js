@@ -761,6 +761,67 @@ function ShopInventoryManage({ user, masterItems, shopItems, thresholds, onAddSh
 }
 
 
+// ── Inventory Item Edit Form ──────────────────────────────────────────────────
+function InlineEditForm({ vals, setVals, onSave, onCancel }) {
+  return(
+    <div style={{ background:"#EFF6FF", border:"1.5px solid #BFDBFE", borderRadius:10, padding:"12px", marginTop:4, marginBottom:8 }}>
+      <div style={{ display:"flex", gap:8, marginBottom:8, flexWrap:"wrap" }}>
+        <div style={{ flex:2, minWidth:120 }}>
+          <label style={S.label}>Name</label>
+          <input value={vals.name} onChange={e=>setVals(p=>({...p,name:e.target.value}))} style={S.input}/>
+        </div>
+        <div style={{ flex:1, minWidth:70 }}>
+          <label style={S.label}>Unit</label>
+          <input value={vals.unit} onChange={e=>setVals(p=>({...p,unit:e.target.value}))} style={S.input}/>
+        </div>
+      </div>
+      <div style={{ display:"flex", gap:8, marginBottom:8, flexWrap:"wrap" }}>
+        <div style={{ flex:1 }}>
+          <label style={S.label}>Section</label>
+          <select value={vals.section} onChange={e=>setVals(p=>({...p,section:e.target.value}))} style={S.input}>
+            {SECTIONS.map(s=><option key={s}>{s}</option>)}
+          </select>
+        </div>
+        <div style={{ flex:1 }}>
+          <label style={S.label}>Purchase Location</label>
+          <select value={vals.purchaseLocation} onChange={e=>setVals(p=>({...p,purchaseLocation:e.target.value}))} style={S.input}>
+            {VENDORS.map(v=><option key={v}>{v}</option>)}
+          </select>
+        </div>
+      </div>
+      <div style={{ display:"flex", gap:8, marginBottom:8 }}>
+        <div style={{ flex:1 }}>
+          <label style={S.label}>Backup Location</label>
+          <select value={vals.backupLocation} onChange={e=>setVals(p=>({...p,backupLocation:e.target.value}))} style={S.input}>
+            <option value="">None</option>
+            {VENDORS.map(v=><option key={v}>{v}</option>)}
+          </select>
+        </div>
+        <div style={{ flex:1 }}>
+          <label style={S.label}>Notes</label>
+          <input value={vals.notes||""} onChange={e=>setVals(p=>({...p,notes:e.target.value}))} style={S.input} placeholder="Optional"/>
+        </div>
+      </div>
+      <div style={{ display:"flex", gap:8, marginBottom:10 }}>
+        <div style={{ flex:1 }}>
+          <label style={S.label}>🟡 Low Threshold</label>
+          <input type="number" value={vals.low||""} onChange={e=>setVals(p=>({...p,low:e.target.value}))}
+            style={{...S.input,MozAppearance:"textfield"}} placeholder="—"/>
+        </div>
+        <div style={{ flex:1 }}>
+          <label style={S.label}>🔴 Critical Threshold</label>
+          <input type="number" value={vals.critical||""} onChange={e=>setVals(p=>({...p,critical:e.target.value}))}
+            style={{...S.input,MozAppearance:"textfield"}} placeholder="—"/>
+        </div>
+      </div>
+      <div style={{ display:"flex", gap:8 }}>
+        <button onClick={onSave} style={{ flex:2, padding:"9px 0", borderRadius:8, border:"none", background:"#1C1917", color:"#fff", fontWeight:700, fontSize:13, cursor:"pointer" }}>Save</button>
+        <button onClick={onCancel} style={{ flex:1, padding:"9px 0", borderRadius:8, border:"1.5px solid #E5E7EB", background:"#fff", color:"#374151", fontWeight:600, fontSize:13, cursor:"pointer" }}>Cancel</button>
+      </div>
+    </div>
+  );
+}
+
 // ── Admin Items View ──────────────────────────────────────────────────────────
 function AdminItemsView({ masterItems, shopItems, onAddItem, onUpdateItem, onDeleteItem, onUpdateShopItem, onDeleteShopItem, onAddShopItem }) {
   const [editingId, setEditingId] = useState(null);
@@ -810,64 +871,6 @@ function AdminItemsView({ masterItems, shopItems, onAddItem, onUpdateItem, onDel
     setNewVals({ name:"", unit:"", section:SECTIONS[0], purchaseLocation:VENDORS[0], backupLocation:"", notes:"", low:"", critical:"" });
     setShowNewItem(false);
   };
-
-  const InlineEditForm = ({ vals, setVals, onSave, onCancel }) => (
-    <div style={{ background:"#EFF6FF", border:"1.5px solid #BFDBFE", borderRadius:10, padding:"12px", marginTop:4, marginBottom:8 }}>
-      <div style={{ display:"flex", gap:8, marginBottom:8, flexWrap:"wrap" }}>
-        <div style={{ flex:2, minWidth:120 }}>
-          <label style={S.label}>Name</label>
-          <input value={vals.name} onChange={e=>setVals(p=>({...p,name:e.target.value}))} style={S.input}/>
-        </div>
-        <div style={{ flex:1, minWidth:70 }}>
-          <label style={S.label}>Unit</label>
-          <input value={vals.unit} onChange={e=>setVals(p=>({...p,unit:e.target.value}))} style={S.input}/>
-        </div>
-      </div>
-      <div style={{ display:"flex", gap:8, marginBottom:8, flexWrap:"wrap" }}>
-        <div style={{ flex:1 }}>
-          <label style={S.label}>Section</label>
-          <select value={vals.section} onChange={e=>setVals(p=>({...p,section:e.target.value}))} style={S.input}>
-            {SECTIONS.map(s=><option key={s}>{s}</option>)}
-          </select>
-        </div>
-        <div style={{ flex:1 }}>
-          <label style={S.label}>Purchase Location</label>
-          <select value={vals.purchaseLocation} onChange={e=>setVals(p=>({...p,purchaseLocation:e.target.value}))} style={S.input}>
-            {VENDORS.map(v=><option key={v}>{v}</option>)}
-          </select>
-        </div>
-      </div>
-      <div style={{ display:"flex", gap:8, marginBottom:8 }}>
-        <div style={{ flex:1 }}>
-          <label style={S.label}>Backup Location</label>
-          <select value={vals.backupLocation} onChange={e=>setVals(p=>({...p,backupLocation:e.target.value}))} style={S.input}>
-            <option value="">None</option>
-            {VENDORS.map(v=><option key={v}>{v}</option>)}
-          </select>
-        </div>
-        <div style={{ flex:1 }}>
-          <label style={S.label}>Notes</label>
-          <input value={vals.notes||""} onChange={e=>setVals(p=>({...p,notes:e.target.value}))} style={S.input} placeholder="Optional"/>
-        </div>
-      </div>
-      <div style={{ display:"flex", gap:8, marginBottom:10 }}>
-        <div style={{ flex:1 }}>
-          <label style={S.label}>🟡 Low Threshold</label>
-          <input type="number" value={vals.low||""} onChange={e=>setVals(p=>({...p,low:e.target.value}))}
-            style={{...S.input, MozAppearance:"textfield"}} placeholder="—"/>
-        </div>
-        <div style={{ flex:1 }}>
-          <label style={S.label}>🔴 Critical Threshold</label>
-          <input type="number" value={vals.critical||""} onChange={e=>setVals(p=>({...p,critical:e.target.value}))}
-            style={{...S.input, MozAppearance:"textfield"}} placeholder="—"/>
-        </div>
-      </div>
-      <div style={{ display:"flex", gap:8 }}>
-        <button onClick={onSave} style={{ flex:2, padding:"9px 0", borderRadius:8, border:"none", background:"#1C1917", color:"#fff", fontWeight:700, fontSize:13, cursor:"pointer" }}>Save</button>
-        <button onClick={onCancel} style={{ flex:1, padding:"9px 0", borderRadius:8, border:"1.5px solid #E5E7EB", background:"#fff", color:"#374151", fontWeight:600, fontSize:13, cursor:"pointer" }}>Cancel</button>
-      </div>
-    </div>
-  );
 
   return (
     <div style={{ paddingBottom:60 }}>
