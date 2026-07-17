@@ -107,7 +107,7 @@ function LoginScreen({ onLogin }) {
             </button>
           ))}
         </div>
-        <button onClick={()=>onLogin(ROLES.find(r=>r.id===role))} style={{
+        <button onClick={()=>onLogin({role, ...ROLES.find(r=>r.id===role)})} style={{
           width:"100%", padding:"13px 0", background:"#1C1917", color:"#fff",
           border:"none", borderRadius:10, fontWeight:700, fontSize:15, cursor:"pointer" }}>
           Enter
